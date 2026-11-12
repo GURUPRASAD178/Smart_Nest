@@ -111,6 +111,40 @@ class AutomationTests(TestCase):
         device.refresh_from_db()
         self.assertEqual(device.state, "off")
 
+    def test_motion_rule_defaults_to_reset_when_beam_clears(self):
+        client = APIClient()
+        light = Device.objects.create(name="Entry LED", device_type="light")
+        rule = client.post(
+            "/api/automation/rules/",
+            {
+                "name": "Entry light",
+                "sensor": "motion",
+                "operator": "gte",
+                "threshold": 1,
+                "device": light.id,
+                "target_state": "on",
+                "enabled": True,
+            },
+            format="json",
+        )
+        self.assertEqual(rule.status_code, 201)
+        self.assertEqual(rule.data["release_threshold"], 0)
+
+        invalid = client.post(
+            "/api/automation/rules/",
+            {
+                "name": "Invalid motion rule",
+                "sensor": "motion",
+                "operator": "gte",
+                "threshold": 0.5,
+                "device": light.id,
+                "target_state": "on",
+                "enabled": True,
+            },
+            format="json",
+        )
+        self.assertEqual(invalid.status_code, 400)
+
     def test_rule_holds_state_inside_hysteresis_band(self):
         client = APIClient()
         device = Device.objects.create(

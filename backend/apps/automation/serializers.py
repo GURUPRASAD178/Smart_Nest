@@ -29,9 +29,20 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
             "calibration_percent",
             getattr(self.instance, "calibration_percent", 100),
         )
-        ranges = {"temperature": (-20, 80), "humidity": (0, 100)}
+        ranges = {"temperature": (-20, 80), "humidity": (0, 100), "motion": (0, 1)}
 
-        if sensor in ranges and threshold is not None:
+        if sensor == "motion" and threshold is not None:
+            if operator != "gte" or threshold != 1:
+                raise serializers.ValidationError({
+                    "threshold": "Motion rules must trigger when motion is detected (threshold 1)."
+                })
+            if release_threshold is None:
+                attrs["release_threshold"] = 0
+            elif not 0 <= release_threshold < 1:
+                raise serializers.ValidationError({
+                    "release_threshold": "Motion rules must reset when motion clears (a value from 0 to less than 1)."
+                })
+        elif sensor in ranges and threshold is not None:
             minimum, maximum = ranges[sensor]
             if not minimum <= threshold <= maximum:
                 raise serializers.ValidationError({

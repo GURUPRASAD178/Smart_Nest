@@ -10,8 +10,9 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from apps.automation.services import evaluate_reading
-from .models import SensorReading
-from .serializers import SensorReadingSerializer
+from apps.automation.services import evaluate_motion
+from .models import MotionEvent, SensorReading
+from .serializers import MotionEventSerializer, SensorReadingSerializer
 
 
 class SensorReadingListCreateView(generics.ListCreateAPIView):
@@ -23,6 +24,24 @@ class SensorReadingListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         reading = serializer.save()
         evaluate_reading(reading)
+
+
+class MotionEventListCreateView(generics.ListCreateAPIView):
+    queryset = MotionEvent.objects.all()[:100]
+    serializer_class = MotionEventSerializer
+    permission_classes = [AllowAny]
+
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        event = serializer.save()
+        result = evaluate_motion(event.detected)
+        return Response(
+            {**serializer.data, "actions": result["actions"]},
+            status=status.HTTP_201_CREATED,
+            headers=self.get_success_headers(serializer.data),
+        )
 
 
 @api_view(["POST"])
@@ -56,5 +75,27 @@ def simulate_reading(_request):
 
     return Response(
         SensorReadingSerializer(reading).data,
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+@transaction.atomic
+def simulate_motion(request):
+    if not settings.DEMO_DATA_ENABLED:
+        return Response(
+            {"detail": "Demo sensor data is disabled."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    serializer = MotionEventSerializer(
+        data={"device_id": "demo-ir-beam", "detected": request.data.get("detected")}
+    )
+    serializer.is_valid(raise_exception=True)
+    event = serializer.save()
+    result = evaluate_motion(event.detected)
+    return Response(
+        {**serializer.data, "actions": result["actions"]},
         status=status.HTTP_201_CREATED,
     )

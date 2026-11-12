@@ -64,9 +64,12 @@ at 9600 baud. The gateway sends valid readings to `POST /api/sensors/readings/`.
 - `GET /api/sensors/readings/`
 - `POST /api/sensors/readings/` body: `{"device_id":"arduino-dht11","temperature":25.4,"humidity":50.2,"heat_index":25.1}`
 - `POST /api/sensors/simulate/` creates a bounded demo reading when demo mode is enabled
+- `GET /api/sensors/motion/` lists recent beam-break events; `POST /api/sensors/motion/` accepts `{"device_id":"arduino-ir-beam","detected":true}`
+- `POST /api/sensors/motion/simulate/` simulates an interrupted or cleared IR beam when demo mode is enabled
 - `GET /api/automation/rules/`
-- `POST /api/automation/rules/` body: `{"name":"Warm room fan","sensor":"temperature","operator":"gte","threshold":25,"release_threshold":24,"calibration_percent":100,"device":1,"target_state":"on","enabled":true}`
-- Enabled rules run on each accepted sensor reading. High-value rules release at or below `release_threshold`; low-value rules release at or above it. Defaults are 1°C for temperature and 5 percentage points for humidity, and the device holds its current state inside the hysteresis band.
+- `POST /api/automation/rules/` body: `{"name":"Entry light","sensor":"motion","operator":"gte","threshold":1,"release_threshold":0,"device":1,"target_state":"on","enabled":true}`
+- Enabled rules run on each accepted sensor reading or motion event. High-value rules release at or below `release_threshold`; low-value rules release at or above it. Defaults are 1°C for temperature and 5 percentage points for humidity, and the device holds its current state inside the hysteresis band.
+- Motion rules switch configured lights/buzzers on while the beam is interrupted and restore the opposite state when it clears. Create separate rules for the light and buzzer.
 - Lights scale brightness and fans map proportional output to speed levels 1–3. Output starts at 20% of `calibration_percent` at the trigger and ramps to that configured cap over the next 5°C or 20 humidity points. Plugs remain on/off only.
 - The dashboard can create, pause, resume, and delete rules, and edit the reset threshold and output calibration
 - `POST /api/automation/rules/evaluate/` manually evaluates the latest reading

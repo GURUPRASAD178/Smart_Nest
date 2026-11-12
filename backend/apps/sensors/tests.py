@@ -3,7 +3,7 @@ from django.test import override_settings
 from rest_framework.test import APIClient
 from apps.devices.models import Device
 from apps.automation.models import AutomationRule
-from .models import SensorReading
+from .models import MotionEvent, SensorReading
 
 
 class SensorApiTests(TestCase):
@@ -67,3 +67,66 @@ class SensorApiTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
         self.assertEqual(SensorReading.objects.count(), 0)
+
+    def test_motion_event_is_persisted_and_evaluates_motion_rules(self):
+        light = Device.objects.create(name="Entry LED", device_type="light")
+        buzzer = Device.objects.create(name="Entry buzzer", device_type="buzzer")
+        for device in (light, buzzer):
+            AutomationRule.objects.create(
+                name=f"Entry alert: {device.name}",
+                sensor="motion",
+                operator="gte",
+                threshold=1,
+                device=device,
+                target_state="on",
+            )
+
+        detected = self.client.post(
+            "/api/sensors/motion/simulate/",
+            {"detected": True},
+            format="json",
+        )
+
+        self.assertEqual(detected.status_code, 201)
+        self.assertEqual(detected.data["device_id"], "demo-ir-beam")
+        self.assertEqual(len(detected.data["actions"]), 2)
+        light.refresh_from_db()
+        buzzer.refresh_from_db()
+        self.assertEqual(light.state, "on")
+        self.assertEqual(light.brightness, 100)
+        self.assertEqual(buzzer.state, "on")
+
+        cleared = self.client.post(
+            "/api/sensors/motion/simulate/",
+            {"detected": False},
+            format="json",
+        )
+
+        self.assertEqual(cleared.status_code, 201)
+        light.refresh_from_db()
+        buzzer.refresh_from_db()
+        self.assertEqual(light.state, "off")
+        self.assertEqual(buzzer.state, "off")
+        self.assertEqual(MotionEvent.objects.count(), 2)
+
+    def test_motion_event_api_accepts_physical_sensor_payload(self):
+        response = self.client.post(
+            "/api/sensors/motion/",
+            {"device_id": "arduino-ir-beam", "detected": True},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["device_id"], "arduino-ir-beam")
+        self.assertTrue(response.data["detected"])
+
+    @override_settings(DEMO_DATA_ENABLED=False)
+    def test_motion_simulation_can_be_disabled(self):
+        response = self.client.post(
+            "/api/sensors/motion/simulate/",
+            {"detected": True},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(MotionEvent.objects.count(), 0)

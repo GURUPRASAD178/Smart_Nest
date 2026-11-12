@@ -2,7 +2,11 @@ from django.db import models
 from apps.devices.models import Device
 
 class AutomationRule(models.Model):
-    SENSORS = [("temperature", "Temperature"), ("humidity", "Humidity")]
+    SENSORS = [
+        ("temperature", "Temperature"),
+        ("humidity", "Humidity"),
+        ("motion", "Motion"),
+    ]
     OPERATORS = [("gt", ">"), ("gte", ">="), ("lt", "<"), ("lte", "<=")]
     STATES = [("on", "On"), ("off", "Off")]
     name = models.CharField(max_length=120)

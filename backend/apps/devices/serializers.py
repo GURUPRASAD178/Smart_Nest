@@ -29,7 +29,7 @@ class DeviceSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         device_type = validated_data.get("device_type", "light")
-        power_defaults = {"light": 9, "fan": 55, "plug": 120, "sensor": 1}
+        power_defaults = {"light": 9, "fan": 55, "plug": 120, "buzzer": 2, "sensor": 1}
         validated_data.setdefault("rated_power_watts", power_defaults[device_type])
         if device_type == "light":
             validated_data.setdefault("brightness", 100)

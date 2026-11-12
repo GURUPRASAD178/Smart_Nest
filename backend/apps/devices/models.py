@@ -1,7 +1,13 @@
 from django.db import models
 
 class Device(models.Model):
-    DEVICE_TYPES = [("light", "Light"), ("fan", "Fan"), ("plug", "Smart Plug"), ("sensor", "Sensor")]
+    DEVICE_TYPES = [
+        ("light", "Light"),
+        ("fan", "Fan"),
+        ("plug", "Smart Plug"),
+        ("buzzer", "Buzzer"),
+        ("sensor", "Sensor"),
+    ]
     STATES = [("on", "On"), ("off", "Off")]
     name = models.CharField(max_length=100)
     room = models.CharField(max_length=60, default="Unassigned")

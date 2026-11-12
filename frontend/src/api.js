@@ -19,6 +19,11 @@ export const api = {
   bulkCommand: state => request('/devices/bulk-command/', { method: 'POST', body: JSON.stringify({ state }) }),
   readings: () => request('/sensors/readings/'),
   simulateReading: () => request('/sensors/simulate/', { method: 'POST', body: '{}' }),
+  motionEvents: () => request('/sensors/motion/'),
+  simulateMotion: detected => request('/sensors/motion/simulate/', {
+    method: 'POST',
+    body: JSON.stringify({ detected }),
+  }),
   summary: () => request('/analytics/summary/'),
   rules: () => request('/automation/rules/'),
   createRule: rule => request('/automation/rules/', { method: 'POST', body: JSON.stringify(rule) }),

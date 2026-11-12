@@ -33,6 +33,17 @@ class DeviceApiTests(TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data["fan_speed"], 1)
 
+    def test_create_buzzer_device(self):
+        response = self.client.post("/api/devices/", {
+            "name": "Entry buzzer",
+            "room": "Entry",
+            "device_type": "buzzer",
+        }, format="json")
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["device_type"], "buzzer")
+        self.assertEqual(response.data["rated_power_watts"], 2)
+
     def test_seed_devices_creates_demo_home_idempotently(self):
         legacy_light = Device.objects.create(name="Living Room Light", device_type="light")
         legacy_fan = Device.objects.create(name="Bedroom Fan", device_type="fan", state="on")

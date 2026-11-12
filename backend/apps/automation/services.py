@@ -21,14 +21,20 @@ def _release_reached(value, operator, threshold):
 
 
 def _output_percent(rule, value):
+    if rule.sensor == "motion":
+        return rule.calibration_percent
     response_span = 5 if rule.sensor == "temperature" else 20
     progress = min(1, abs(value - rule.threshold) / response_span)
     return max(1, round(rule.calibration_percent * (0.2 + 0.8 * progress)))
 
 
 @transaction.atomic
-def evaluate_reading(reading):
-    rules = AutomationRule.objects.select_related("device").filter(enabled=True).order_by("id")
+def _evaluate_values(values):
+    rules = (
+        AutomationRule.objects.select_related("device")
+        .filter(enabled=True, sensor__in=values)
+        .order_by("id")
+    )
     actions = []
     skipped_offline = 0
 
@@ -40,11 +46,11 @@ def evaluate_reading(reading):
             skipped_offline += 1
             continue
 
-        value = getattr(reading, rule.sensor)
+        value = values[rule.sensor]
         triggered = _matches(value, rule.operator, rule.threshold)
         release_threshold = rule.release_threshold
         if release_threshold is None:
-            gap = 1 if rule.sensor == "temperature" else 5
+            gap = 1 if rule.sensor in ("temperature", "motion") else 5
             release_threshold = (
                 rule.threshold - gap
                 if rule.operator in ("gt", "gte")
@@ -92,3 +98,14 @@ def evaluate_reading(reading):
         "actions": actions,
         "skipped_offline": skipped_offline,
     }
+
+
+def evaluate_reading(reading):
+    return _evaluate_values({
+        "temperature": reading.temperature,
+        "humidity": reading.humidity,
+    })
+
+
+def evaluate_motion(detected):
+    return _evaluate_values({"motion": 1 if detected else 0})

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import SensorReading
+from .models import MotionEvent, SensorReading
 
 class SensorReadingSerializer(serializers.ModelSerializer):
     class Meta:
@@ -16,3 +16,10 @@ class SensorReadingSerializer(serializers.ModelSerializer):
         if not 0 <= value <= 100:
             raise serializers.ValidationError("humidity must be between 0 and 100%.")
         return value
+
+
+class MotionEventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MotionEvent
+        fields = ["id", "device_id", "detected", "recorded_at"]
+        read_only_fields = ["id", "recorded_at"]

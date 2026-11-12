@@ -11,6 +11,7 @@ describe('API client', () => {
     ['devices', () => api.devices(), '/api/devices/'],
     ['sensor readings', () => api.readings(), '/api/sensors/readings/'],
     ['demo sensor readings', () => api.simulateReading(), '/api/sensors/simulate/'],
+    ['motion events', () => api.motionEvents(), '/api/sensors/motion/'],
     ['analytics summary', () => api.summary(), '/api/analytics/summary/'],
     ['automation evaluation', () => api.evaluate(), '/api/automation/rules/evaluate/'],
   ])('routes %s through the same-origin API proxy', async (_name, call, path) => {
@@ -38,6 +39,21 @@ describe('API client', () => {
       method: 'POST',
       body: JSON.stringify({ state: 'on' }),
       headers: { 'Content-Type': 'application/json' },
+    }));
+  });
+
+  it('sends simulated beam state through the motion API', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ detected: true }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await api.simulateMotion(true);
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/sensors/motion/simulate/', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ detected: true }),
     }));
   });
 

@@ -16,9 +16,9 @@ PostgreSQL or local SQLite    USB serial sensor gateway
                             Arduino + DHT11
 ```
 
-The dashboard also supports simulated devices and demo sensor readings. Device state, brightness, and fan speed are persisted in the API, but the current device commands do not operate physical appliances. The Arduino integration currently reads temperature and humidity only.
+The dashboard also supports simulated devices, demo temperature/humidity readings, and simulated IR beam-break events. Device state, brightness, fan speed, and buzzer state are persisted in the API, but device commands do not operate physical appliances. The current Arduino integration reads temperature and humidity only; no physical IR sensor or buzzer is connected yet.
 
-Enabled automation rules are evaluated on the server when a sensor reading is accepted, whether the reading comes from the demo endpoint or the USB gateway. Rules and device controls remain simulated.
+Enabled automation rules are evaluated on the server when a sensor reading or motion event is accepted. Rules and device controls remain simulated.
 
 ### Automation triggers, reset thresholds, and output calibration
 
@@ -56,7 +56,9 @@ The gateway currently runs on the computer that can access both the serial port 
 
 ### Optional future components
 
-Additional temperature/humidity sensors, light sensors, or motion sensors can be added, but they are not currently supported by the firmware/API data model. Check electrical compatibility and the module documentation before connecting them. Each new sensor type needs an explicit data contract and tests (see section 6).
+The dashboard can simulate an IR beam-break event and a buzzer device. The selected IR obstacle/break-beam sensor detects interruption at a fixed path; it is not the same as a PIR room-motion sensor and cannot establish that a break-in occurred. A door/window contact sensor can later detect opening at a specific entry point. Check the exact sensor and buzzer module datasheets before any physical connection. The Arduino firmware has not yet been extended for these modules.
+
+For a later Arduino Uno build, D2 remains assigned to the DHT11; D3 for the beam sensor output and D4 for a buzzer-driver control are only a provisional pin plan. Confirm the sensor's output polarity and voltage and whether the buzzer is active or passive before writing or wiring the firmware. Do not drive a buzzer directly from a GPIO pin unless its electrical ratings explicitly allow it; use an appropriate driver when required.
 
 For physical appliance control, use certified smart plugs or a properly rated, isolated actuator installed by a qualified person. Do not connect mains voltage to an Arduino, breadboard, USB port, or low-voltage sensor module. Physical actuation is not implemented by this project.
 
@@ -91,9 +93,19 @@ Content-Type: application/json
 
 `heat_index` may be null. The API records a server-side timestamp.
 
+### Motion event and automation contract
+
+The dashboard posts a simulated event to `POST /api/sensors/motion/simulate/`:
+
+```json
+{"detected": true}
+```
+
+The API records it as `device_id: "demo-ir-beam"` and evaluates enabled motion rules. A physical gateway can later post the same boolean to `POST /api/sensors/motion/` with a stable device ID. Create one motion rule per target: `sensor: "motion"`, `operator: "gte"`, `threshold: 1`, `release_threshold: 0`; choose a light or buzzer and set its target state to `on`. When the beam clears (`detected: false`), the rule restores the opposite state. The buzzer therefore sounds only while the simulated beam is blocked. This is prototype behavior, not a certified intrusion alarm.
+
 ### Device contract
 
-Device records currently support `light`, `fan`, `plug`, and `sensor`, with a room, online/simulated flags, estimated rated watts, and on/off state. Lights have a 0-100 brightness control; fans have speed levels 1-3. For example:
+Device records currently support `light`, `fan`, `plug`, `buzzer`, and `sensor`, with a room, online/simulated flags, estimated rated watts, and on/off state. Lights have a 0-100 brightness control; fans have speed levels 1-3. For example:
 
 ```json
 {
@@ -113,6 +125,8 @@ The dashboard uses:
 - `POST /api/devices/bulk-command/` to switch online controllable devices on or off.
 
 Sensors cannot be switched, and offline devices reject individual commands. The bulk command skips offline devices and sensors.
+
+The `buzzer` device type is available for on/off simulation only; it does not activate a physical buzzer.
 
 ## 4. Start and verify the existing system first
 
@@ -172,7 +186,7 @@ For local development without Docker, follow the backend and frontend steps in t
 
 Do not repurpose `temperature`, `humidity`, or `heat_index` to carry unrelated measurements. Add the new type additively:
 
-1. Choose a stable sensor identifier and define units, valid ranges, sampling cadence, and timestamp behavior.
+1. Choose a stable sensor identifier and define units, valid ranges, sampling cadence, and timestamp behavior. For a beam-break input, specify whether `detected: true` means blocked or clear and keep that polarity consistent.
 2. Extend the firmware/gateway contract. Prefer a versioned or clearly named payload rather than silently changing the existing CSV column order.
 3. Add model fields or a separate sensor-specific model/API if the new reading does not fit the existing DHT fields.
 4. Add serializer validation for units/ranges and tests for valid, invalid, and missing values.
@@ -184,7 +198,7 @@ For new data fields, create a Django migration (`python manage.py makemigrations
 
 ## 7. Add devices and controls
 
-For an additional simulated light, fan, plug, or sensor, use the dashboard's **Add device** form or `POST /api/devices/`. The API assigns reasonable default control values and power estimates based on device type. Confirm the new record appears in the correct room and behaves correctly before adding hardware.
+For an additional simulated light, fan, plug, buzzer, or sensor, use the dashboard's **Add device** form or `POST /api/devices/`. The API assigns reasonable default control values and power estimates based on device type. Confirm the new record appears in the correct room and behaves correctly before adding hardware.
 
 When adding a new device type or control:
 
