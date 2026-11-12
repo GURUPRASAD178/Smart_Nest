@@ -37,6 +37,7 @@ cd frontend
 npm install
 npm run dev
 ```
+The Vite dev server proxies `/api` requests to `http://127.0.0.1:8000` by default. Set `SMARTNEST_BACKEND_URL` if the backend runs at a different address. Docker Compose configures the proxy to reach its backend service automatically.
 
 ### Gateway
 ```bash
