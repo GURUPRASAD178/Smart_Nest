@@ -67,7 +67,7 @@ at 9600 baud. The gateway sends valid readings to `POST /api/sensors/readings/`.
 ## Tests
 ```bash
 cd backend
-python manage.py test
+python manage.py test config.tests apps.devices apps.sensors apps.automation apps.analytics
 ```
 
 ## Git workflow
@@ -77,4 +77,4 @@ Use issues and branches such as `feature/SN-02-device-api`; run tests before ope
 This is the first working vertical slice. Device control is simulated and persisted in the database; it does not switch physical mains appliances. DHT11 measures temperature and humidity, not occupancy or ambient brightness. Adaptive-lighting inputs should be simulated until appropriate low-voltage sensors are added. Energy is an estimate based on configured wattage and device on-time, not utility-grade measurement.
 
 ## Security / deployment
-Change `DJANGO_SECRET_KEY`, set `DJANGO_DEBUG=False`, and configure `DJANGO_ALLOWED_HOSTS` before public deployment. Do not expose Django's development server to the public internet. Use a production WSGI server and HTTPS for a real cloud deployment.
+Set a unique `DJANGO_SECRET_KEY`, set `DJANGO_DEBUG=False`, and configure `DJANGO_ALLOWED_HOSTS` before deployment. The API refuses to start with a missing or example secret when debug mode is disabled. Do not expose Django's development server to the public internet. Use a production WSGI server and HTTPS for a real cloud deployment.

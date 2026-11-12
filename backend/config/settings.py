@@ -1,10 +1,23 @@
 import os
 from pathlib import Path
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-change-me")
 DEBUG = os.getenv("DJANGO_DEBUG", "True").lower() in ("1", "true", "yes")
+_DEV_SECRET_KEY = "dev-only-change-me"
+_PLACEHOLDER_SECRET_KEYS = {_DEV_SECRET_KEY, "replace-this-for-any-real-deployment"}
+
+
+def _get_secret_key(configured_key, debug):
+    if not debug and (not configured_key or configured_key in _PLACEHOLDER_SECRET_KEYS):
+        raise ImproperlyConfigured(
+            "Set DJANGO_SECRET_KEY to a unique secret when DJANGO_DEBUG is disabled."
+        )
+    return configured_key or _DEV_SECRET_KEY
+
+
+SECRET_KEY = _get_secret_key(os.getenv("DJANGO_SECRET_KEY"), DEBUG)
 ALLOWED_HOSTS = [h.strip() for h in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,backend").split(",") if h.strip()]
 INSTALLED_APPS = [
     "django.contrib.admin", "django.contrib.auth", "django.contrib.contenttypes",
