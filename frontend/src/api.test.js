@@ -40,4 +40,50 @@ describe('API client', () => {
       headers: { 'Content-Type': 'application/json' },
     }));
   });
+
+  it('sends device-specific control values as JSON', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ brightness: 35 }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await api.command(7, { brightness: 35 });
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/devices/7/command/', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ brightness: 35 }),
+    }));
+  });
+
+  it('creates room-aware devices through the API', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: 8 }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const device = { name: 'Kitchen Light', room: 'Kitchen', device_type: 'light' };
+
+    await api.createDevice(device);
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/devices/', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify(device),
+    }));
+  });
+
+  it('sends bulk device commands through the API', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ updated: 4 }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await api.bulkCommand('off');
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/devices/bulk-command/', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ state: 'off' }),
+    }));
+  });
 });

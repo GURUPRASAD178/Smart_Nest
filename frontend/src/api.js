@@ -11,7 +11,12 @@ async function request(path, options = {}) {
 export const api = {
   health: () => request('/health/'),
   devices: () => request('/devices/'),
-  command: (id, state) => request(`/devices/${id}/command/`, { method: 'POST', body: JSON.stringify({ state }) }),
+  createDevice: device => request('/devices/', { method: 'POST', body: JSON.stringify(device) }),
+  command: (id, command) => request(`/devices/${id}/command/`, {
+    method: 'POST',
+    body: JSON.stringify(typeof command === 'string' ? { state: command } : command),
+  }),
+  bulkCommand: state => request('/devices/bulk-command/', { method: 'POST', body: JSON.stringify({ state }) }),
   readings: () => request('/sensors/readings/'),
   simulateReading: () => request('/sensors/simulate/', { method: 'POST', body: '{}' }),
   summary: () => request('/analytics/summary/'),

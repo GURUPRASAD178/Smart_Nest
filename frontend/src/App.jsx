@@ -4,6 +4,44 @@ import './dashboard.css';
 
 const TelemetryPanel = lazy(() => import('./TelemetryPanel.jsx'));
 
+function DeviceCard({ device, busy, onCommand }) {
+  const [brightness, setBrightness] = useState(device.brightness ?? 100);
+  const [fanSpeed, setFanSpeed] = useState(device.fan_speed ?? 1);
+  const isLight = device.device_type === 'light';
+  const isFan = device.device_type === 'fan';
+
+  useEffect(() => {
+    setBrightness(device.brightness ?? 100);
+    setFanSpeed(device.fan_speed ?? 1);
+  }, [device.brightness, device.fan_speed]);
+
+  const controlsChanged = isLight
+    ? brightness !== (device.brightness ?? 100)
+    : isFan && fanSpeed !== (device.fan_speed ?? 1);
+  const icon = { fan: '◉', sensor: '⌁', plug: '▣' }[device.device_type] || '☼';
+  const label = { light: 'Light', fan: 'Fan', plug: 'Smart plug', sensor: 'Sensor' }[device.device_type] || device.device_type;
+
+  return <article className="device card">
+    <div className="device-top"><div className={`device-icon ${device.state === 'on' ? 'active' : ''}`}>{icon}</div><span className={`pill ${device.is_online ? 'online' : 'offline'}`}>{device.is_online ? 'Online' : 'Offline'}</span></div>
+    <div className="device-title"><h4>{device.name}</h4><span className="room-chip">{device.room || 'Unassigned'}</span></div>
+    <p className="muted">{label} · {device.rated_power_watts} W · {device.is_simulated ? 'Simulated' : 'Physical'}</p>
+    {isLight && <div className="device-control">
+      <label htmlFor={`brightness-${device.id}`}><span>Brightness</span><strong>{brightness}%</strong></label>
+      <input id={`brightness-${device.id}`} type="range" min="0" max="100" step="5" value={brightness} disabled={!device.is_online || busy} onChange={event => setBrightness(Number(event.target.value))}/>
+      <button className="control-save" disabled={!device.is_online || busy || !controlsChanged} onClick={() => onCommand(device, { brightness })}>Apply brightness</button>
+    </div>}
+    {isFan && <div className="device-control">
+      <label htmlFor={`fan-speed-${device.id}`}>Fan speed</label>
+      <select id={`fan-speed-${device.id}`} value={fanSpeed} disabled={!device.is_online || busy} onChange={event => setFanSpeed(Number(event.target.value))}>
+        <option value="1">1 · Quiet</option><option value="2">2 · Normal</option><option value="3">3 · Boost</option>
+      </select>
+      <button className="control-save" disabled={!device.is_online || busy || !controlsChanged} onClick={() => onCommand(device, { fan_speed: fanSpeed })}>Apply speed</button>
+    </div>}
+    <div className="device-bottom"><div><span className="muted small">Current state</span><strong className={device.state === 'on' ? 'state-on' : ''}>{device.device_type === 'sensor' ? 'MONITORING' : device.state.toUpperCase()}</strong></div>
+      {device.device_type !== 'sensor' && <button className={device.state === 'on' ? 'toggle on' : 'toggle'} disabled={busy || !device.is_online} onClick={() => onCommand(device, { state: device.state === 'on' ? 'off' : 'on' })} aria-label={`Turn ${device.name} ${device.state === 'on' ? 'off' : 'on'}`}>{busy ? '…' : device.state === 'on' ? 'Turn off' : 'Turn on'}</button>}</div>
+  </article>;
+}
+
 function Stat({ label, value, unit = '' }) {
   return <article className="stat card"><span className="muted">{label}</span><strong>{value ?? '—'}{unit}</strong></article>;
 }
@@ -13,6 +51,11 @@ export default function App() {
   const [readings, setReadings] = useState([]);
   const [summary, setSummary] = useState(null);
   const [busy, setBusy] = useState({});
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [creatingDevice, setCreatingDevice] = useState(false);
+  const [showDeviceForm, setShowDeviceForm] = useState(false);
+  const [roomFilter, setRoomFilter] = useState('*');
+  const [newDevice, setNewDevice] = useState({ name: '', room: 'Living Room', device_type: 'light' });
   const [demoMode, setDemoMode] = useState(false);
   const [evaluating, setEvaluating] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -62,18 +105,51 @@ export default function App() {
     };
   }, [refresh]);
 
-  async function toggle(device) {
-    const next = device.state === 'on' ? 'off' : 'on';
+  async function runCommand(device, command) {
     setBusy(old => ({ ...old, [device.id]: true }));
     setNotice('');
     try {
-      await api.command(device.id, next);
+      await api.command(device.id, command);
       await refresh();
-      setNotice(`${device.name} turned ${next}.`);
+      if (command.state) setNotice(`${device.name} turned ${command.state}.`);
+      else if (command.brightness !== undefined) setNotice(`${device.name} brightness set to ${command.brightness}%.`);
+      else if (command.fan_speed !== undefined) setNotice(`${device.name} speed set to ${command.fan_speed}.`);
     } catch (e) {
       setError(e.message);
     } finally {
       setBusy(old => ({ ...old, [device.id]: false }));
+    }
+  }
+
+  async function turnAllOff() {
+    setBulkBusy(true);
+    setNotice('');
+    try {
+      const result = await api.bulkCommand('off');
+      await refresh();
+      const skipped = result.skipped_offline ? ` ${result.skipped_offline} offline device(s) skipped.` : '';
+      setNotice(`${result.updated} device(s) turned off.${skipped}`);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  async function addDevice(event) {
+    event.preventDefault();
+    setCreatingDevice(true);
+    setNotice('');
+    try {
+      const device = await api.createDevice(newDevice);
+      await refresh();
+      setNewDevice({ name: '', room: newDevice.room, device_type: 'light' });
+      setShowDeviceForm(false);
+      setNotice(`${device.name} added to ${device.room}.`);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setCreatingDevice(false);
     }
   }
 
@@ -93,6 +169,8 @@ export default function App() {
   }
 
   const latest = readings[0];
+  const rooms = [...new Set(devices.map(device => device.room || 'Unassigned'))].sort();
+  const visibleDevices = devices.filter(device => roomFilter === '*' || (device.room || 'Unassigned') === roomFilter);
   return <main className="shell">
     <header className="topbar">
       <div className="brand"><div className="brand-icon">⌂</div><div><h1>SmartNest</h1><p>Intelligent home control</p></div></div>
@@ -115,15 +193,28 @@ export default function App() {
       <Stat label="Devices online" value={devices.filter(device => device.is_online).length}/>
       <Stat label="Estimated active load" value={summary?.estimated_active_power_watts ?? '—'} unit={summary ? ' W' : ''}/>
     </section>
-    <section className="section-heading"><div><p className="eyebrow">CONTROL CENTER</p><h3>Your devices</h3></div><span className="muted">{devices.length} registered</span></section>
+    <section className="section-heading device-heading">
+      <div><p className="eyebrow">CONTROL CENTER</p><h3>Your devices</h3><span className="muted">{devices.length} registered</span></div>
+      <div className="dashboard-controls">
+        <label className="room-filter" htmlFor="room-filter"><span>Room</span><select id="room-filter" value={roomFilter} onChange={event => setRoomFilter(event.target.value)}>
+          <option value="*">All rooms</option>{rooms.map(room => <option key={room}>{room}</option>)}
+        </select></label>
+        <button className="ghost" disabled={bulkBusy || !devices.some(device => device.state === 'on' && device.device_type !== 'sensor' && device.is_online)} onClick={turnAllOff}>{bulkBusy ? 'Switching…' : 'All off'}</button>
+        <button className="primary" onClick={() => setShowDeviceForm(open => !open)}>{showDeviceForm ? 'Cancel' : '+ Add device'}</button>
+      </div>
+    </section>
+    {showDeviceForm && <form className="card device-form" onSubmit={addDevice}>
+      <label>Device name<input required maxLength="100" value={newDevice.name} onChange={event => setNewDevice(old => ({ ...old, name: event.target.value }))} placeholder="e.g. Reading lamp"/></label>
+      <label>Room<input required maxLength="60" value={newDevice.room} onChange={event => setNewDevice(old => ({ ...old, room: event.target.value }))} placeholder="e.g. Study"/></label>
+      <label>Device type<select value={newDevice.device_type} onChange={event => setNewDevice(old => ({ ...old, device_type: event.target.value }))}>
+        <option value="light">Light</option><option value="fan">Fan</option><option value="plug">Smart plug</option><option value="sensor">Sensor</option>
+      </select></label>
+      <button className="primary" disabled={creatingDevice}>{creatingDevice ? 'Adding…' : 'Add device'}</button>
+    </form>}
     <section className="device-grid">
-      {devices.map(device => <article className="device card" key={device.id}>
-        <div className="device-top"><div className={`device-icon ${device.state === 'on' ? 'active' : ''}`}>{device.device_type === 'fan' ? '◉' : device.device_type === 'sensor' ? '⌁' : '☼'}</div><span className={`pill ${device.is_online ? 'online' : 'offline'}`}>{device.is_online ? 'Online' : 'Offline'}</span></div>
-        <h4>{device.name}</h4><p className="muted">{device.device_type} · {device.is_simulated ? 'Simulator' : 'Physical device'}</p>
-        <div className="device-bottom"><div><span className="muted small">Current state</span><strong className={device.state === 'on' ? 'state-on' : ''}>{device.state.toUpperCase()}</strong></div>
-          <button className={device.state === 'on' ? 'toggle on' : 'toggle'} disabled={busy[device.id] || !device.is_online || device.device_type === 'sensor'} onClick={() => toggle(device)} aria-label={`Turn ${device.name} ${device.state === 'on' ? 'off' : 'on'}`}>{busy[device.id] ? '…' : device.state === 'on' ? 'Turn off' : 'Turn on'}</button></div>
-      </article>)}
-      {devices.length === 0 && !error && <div className="card empty">No devices yet. Run <code>python manage.py seed_devices</code> in the backend.</div>}
+      {visibleDevices.map(device => <DeviceCard key={device.id} device={device} busy={Boolean(busy[device.id])} onCommand={runCommand}/>)}
+      {visibleDevices.length === 0 && devices.length > 0 && <div className="card empty">No devices in this room.</div>}
+      {devices.length === 0 && !error && <div className="card empty">No devices yet. Use Add device to get started.</div>}
     </section>
     <Suspense fallback={<section className="telemetry-grid"><div className="card chart-panel chart-empty">Loading live telemetry…</div></section>}>
       <TelemetryPanel readings={readings} demoMode={demoMode}/>

@@ -8,13 +8,15 @@ Smart home automation starter: React + Vite dashboard, Django REST API, PostgreS
 - Docker Desktop (recommended)
 - Arduino IDE only for physical sensor integration
 
+See the [Hardware and System Expansion Guide](docs/hardware-and-expansion-guide.md) for the bill of materials, sensor setup, API contracts, and a safe staged integration process.
+
 ## Quick start (Docker)
 1. Copy `.env.example` to `.env`.
 2. Run `docker compose up --build`.
 3. API: http://localhost:8000/api/health/
 4. Dashboard: http://localhost:5173
 
-Docker Compose seeds a simulated light and fan automatically. For local backend development, run `python manage.py seed_devices` after migrations.
+Docker Compose seeds seven simulated devices across five rooms automatically. For local backend development, run `python manage.py seed_devices` after migrations.
 
 ## Local development without Docker
 
@@ -56,8 +58,9 @@ at 9600 baud. The gateway sends valid readings to `POST /api/sensors/readings/`.
 ## API
 - `GET /api/health/`
 - `GET /api/devices/`
-- `POST /api/devices/` body: `{"name":"Desk Light","device_type":"light","is_simulated":true}`
-- `POST /api/devices/<id>/command/` body: `{"state":"on"}` or `{"state":"off"}`
+- `POST /api/devices/` body: `{"name":"Desk Light","room":"Office","device_type":"light"}`
+- `POST /api/devices/<id>/command/` accepts `{"state":"on"}`, `{"brightness":45}` for lights, or `{"fan_speed":2}` for fans
+- `POST /api/devices/bulk-command/` body: `{"state":"off"}` to switch off all online controllable devices
 - `GET /api/sensors/readings/`
 - `POST /api/sensors/readings/` body: `{"device_id":"arduino-dht11","temperature":25.4,"humidity":50.2,"heat_index":25.1}`
 - `POST /api/sensors/simulate/` creates a bounded demo reading when demo mode is enabled

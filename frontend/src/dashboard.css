@@ -107,6 +107,116 @@
   border-color: #3b5a68;
 }
 
+.device-heading {
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.device-heading > div:first-child {
+  display: grid;
+  gap: 5px;
+}
+
+.dashboard-controls {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.room-filter,
+.device-form label {
+  display: grid;
+  gap: 6px;
+  color: #96a6bd;
+  font-size: 10px;
+}
+
+.room-filter select,
+.device-form input,
+.device-form select,
+.device-control select {
+  min-height: 38px;
+  border: 1px solid #35445b;
+  border-radius: 9px;
+  padding: 8px 10px;
+  background: #101a2a;
+  color: #e7edf8;
+  font: inherit;
+}
+
+.device-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 15px;
+}
+
+.device-title h4 {
+  min-width: 0;
+  margin: 0;
+}
+
+.room-chip {
+  flex: 0 0 auto;
+  border: 1px solid #2c3c53;
+  border-radius: 20px;
+  padding: 4px 8px;
+  color: #9fb0c7;
+  font-size: 9px;
+}
+
+.device-control {
+  display: grid;
+  gap: 9px;
+  margin: 14px 0;
+  padding: 12px;
+  border: 1px solid #243248;
+  border-radius: 12px;
+  background: #101a2a;
+}
+
+.device-control label {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: #99a9c0;
+  font-size: 10px;
+}
+
+.device-control label strong {
+  color: #77e0bd;
+}
+
+.device-control input[type='range'] {
+  width: 100%;
+  accent-color: #72e0c1;
+}
+
+.device-control select {
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 9px;
+}
+
+.control-save {
+  justify-self: end;
+  padding: 7px 10px;
+  background: #202d42;
+  color: #dce7f6;
+  font-size: 10px;
+}
+
+.device-form {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr auto;
+  align-items: end;
+  gap: 12px;
+  margin: -2px 0 15px;
+  padding: 16px;
+}
+
 .dot:not(.bad) {
   animation: live-pulse 1.8s ease-in-out infinite;
 }
@@ -121,9 +231,25 @@
   .telemetry-grid {
     grid-template-columns: 1fr;
   }
+
+  .device-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
+  .dashboard-controls {
+    width: 100%;
+  }
+
+  .room-filter {
+    flex: 1;
+  }
+
+  .device-form {
+    grid-template-columns: 1fr;
+  }
+
   .connection .updated {
     display: none;
   }
