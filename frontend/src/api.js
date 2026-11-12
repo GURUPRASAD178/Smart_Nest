@@ -9,9 +9,11 @@ async function request(path, options = {}) {
   return body;
 }
 export const api = {
+  health: () => request('/health/'),
   devices: () => request('/devices/'),
   command: (id, state) => request(`/devices/${id}/command/`, { method: 'POST', body: JSON.stringify({ state }) }),
   readings: () => request('/sensors/readings/'),
+  simulateReading: () => request('/sensors/simulate/', { method: 'POST', body: '{}' }),
   summary: () => request('/analytics/summary/'),
   evaluate: () => request('/automation/rules/evaluate/', { method: 'POST', body: '{}' }),
 };

@@ -1,0 +1,145 @@
+.telemetry-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.9fr);
+  gap: 14px;
+  align-items: stretch;
+  margin-top: 34px;
+}
+
+.chart-panel,
+.recent-panel {
+  min-width: 0;
+  padding: 18px;
+}
+
+.panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.panel-heading h3 {
+  margin: 0;
+  font: 600 18px 'Space Grotesk';
+}
+
+.live-tag,
+.chart-legend,
+.chart-legend span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.live-tag {
+  padding: 6px 9px;
+  border: 1px solid #285247;
+  border-radius: 20px;
+  color: #86e5c7;
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+
+.live-tag .dot {
+  width: 6px;
+  height: 6px;
+}
+
+.chart-legend {
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 6px 4px 0;
+  color: #b7c5d8;
+  font-size: 10px;
+}
+
+.chart-legend .muted {
+  margin-left: auto;
+}
+
+.chart-legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.legend-temp {
+  background: #73e0c1;
+}
+
+.legend-humidity {
+  background: #8ca9ff;
+}
+
+.chart-empty {
+  display: grid;
+  min-height: 250px;
+  place-items: center;
+}
+
+.recent-panel .reading-list {
+  max-height: 310px;
+  overflow: auto;
+}
+
+.recent-panel .reading-row {
+  gap: 8px;
+}
+
+.recent-panel .reading-values {
+  gap: 8px;
+  font-size: 10px;
+}
+
+.updated {
+  color: #71829a;
+  font-size: 10px;
+}
+
+.device.card {
+  transition: transform 180ms ease, border-color 180ms ease;
+}
+
+.device.card:hover {
+  transform: translateY(-3px);
+  border-color: #3b5a68;
+}
+
+.dot:not(.bad) {
+  animation: live-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+  50% {
+    box-shadow: 0 0 0 5px #69ddb822, 0 0 15px #69ddb888;
+  }
+}
+
+@media (max-width: 850px) {
+  .telemetry-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .connection .updated {
+    display: none;
+  }
+
+  .chart-legend .muted {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dot:not(.bad) {
+    animation: none;
+  }
+
+  .device.card {
+    transition: none;
+  }
+}

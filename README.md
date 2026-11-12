@@ -14,8 +14,7 @@ Smart home automation starter: React + Vite dashboard, Django REST API, PostgreS
 3. API: http://localhost:8000/api/health/
 4. Dashboard: http://localhost:5173
 
-The initial API seeds a simulated light and fan when you run:
-`docker compose exec backend python manage.py seed_devices`
+Docker Compose seeds a simulated light and fan automatically. For local backend development, run `python manage.py seed_devices` after migrations.
 
 ## Local development without Docker
 
@@ -61,6 +60,7 @@ at 9600 baud. The gateway sends valid readings to `POST /api/sensors/readings/`.
 - `POST /api/devices/<id>/command/` body: `{"state":"on"}` or `{"state":"off"}`
 - `GET /api/sensors/readings/`
 - `POST /api/sensors/readings/` body: `{"device_id":"arduino-dht11","temperature":25.4,"humidity":50.2,"heat_index":25.1}`
+- `POST /api/sensors/simulate/` creates a bounded demo reading when demo mode is enabled
 - `GET /api/automation/rules/`
 - `POST /api/automation/rules/` body: `{"name":"Warm room light","sensor":"temperature","operator":"gte","threshold":28,"device":1,"target_state":"on","enabled":true}`
 - `GET /api/analytics/summary/`
@@ -78,4 +78,4 @@ Use issues and branches such as `feature/SN-02-device-api`; run tests before ope
 This is the first working vertical slice. Device control is simulated and persisted in the database; it does not switch physical mains appliances. DHT11 measures temperature and humidity, not occupancy or ambient brightness. Adaptive-lighting inputs should be simulated until appropriate low-voltage sensors are added. Energy is an estimate based on configured wattage and device on-time, not utility-grade measurement.
 
 ## Security / deployment
-Set a unique `DJANGO_SECRET_KEY`, set `DJANGO_DEBUG=False`, and configure `DJANGO_ALLOWED_HOSTS` before deployment. The API refuses to start with a missing or example secret when debug mode is disabled. Do not expose Django's development server to the public internet. Use a production WSGI server and HTTPS for a real cloud deployment.
+Set a unique `DJANGO_SECRET_KEY`, set `DJANGO_DEBUG=False`, set `SMARTNEST_DEMO_DATA=False`, and configure `DJANGO_ALLOWED_HOSTS` before deployment. The API refuses to start with a missing or example secret when debug mode is disabled. Demo sensor generation defaults to the debug setting and can be disabled independently. Do not expose Django's development server to the public internet. Use a production WSGI server and HTTPS for a real cloud deployment.

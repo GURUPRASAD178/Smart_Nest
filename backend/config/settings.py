@@ -5,6 +5,11 @@ from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEBUG = os.getenv("DJANGO_DEBUG", "True").lower() in ("1", "true", "yes")
+_demo_data_setting = os.getenv("SMARTNEST_DEMO_DATA")
+DEMO_DATA_ENABLED = (
+    DEBUG if not _demo_data_setting
+    else _demo_data_setting.lower() in ("1", "true", "yes")
+)
 _DEV_SECRET_KEY = "dev-only-change-me"
 _PLACEHOLDER_SECRET_KEYS = {_DEV_SECRET_KEY, "replace-this-for-any-real-deployment"}
 

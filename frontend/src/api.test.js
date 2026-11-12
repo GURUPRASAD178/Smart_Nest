@@ -7,8 +7,10 @@ afterEach(() => {
 
 describe('API client', () => {
   it.each([
+    ['API health', () => api.health(), '/api/health/'],
     ['devices', () => api.devices(), '/api/devices/'],
     ['sensor readings', () => api.readings(), '/api/sensors/readings/'],
+    ['demo sensor readings', () => api.simulateReading(), '/api/sensors/simulate/'],
     ['analytics summary', () => api.summary(), '/api/analytics/summary/'],
     ['automation evaluation', () => api.evaluate(), '/api/automation/rules/evaluate/'],
   ])('routes %s through the same-origin API proxy', async (_name, call, path) => {
