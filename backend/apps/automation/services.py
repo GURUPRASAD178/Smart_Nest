@@ -1,6 +1,29 @@
+import math
+
 from django.db import transaction
 
 from .models import AutomationRule
+
+
+def _matches(value, operator, threshold):
+    return {
+        "gt": value > threshold,
+        "gte": value >= threshold,
+        "lt": value < threshold,
+        "lte": value <= threshold,
+    }[operator]
+
+
+def _release_reached(value, operator, threshold):
+    if operator in ("gt", "gte"):
+        return value <= threshold
+    return value >= threshold
+
+
+def _output_percent(rule, value):
+    response_span = 5 if rule.sensor == "temperature" else 20
+    progress = min(1, abs(value - rule.threshold) / response_span)
+    return max(1, round(rule.calibration_percent * (0.2 + 0.8 * progress)))
 
 
 @transaction.atomic
@@ -18,21 +41,51 @@ def evaluate_reading(reading):
             continue
 
         value = getattr(reading, rule.sensor)
-        passed = {
-            "gt": value > rule.threshold,
-            "gte": value >= rule.threshold,
-            "lt": value < rule.threshold,
-            "lte": value <= rule.threshold,
-        }[rule.operator]
-        if passed and device.state != rule.target_state:
-            device.state = rule.target_state
-            device.save(update_fields=["state"])
-            actions.append({
+        triggered = _matches(value, rule.operator, rule.threshold)
+        release_threshold = rule.release_threshold
+        if release_threshold is None:
+            gap = 1 if rule.sensor == "temperature" else 5
+            release_threshold = (
+                rule.threshold - gap
+                if rule.operator in ("gt", "gte")
+                else rule.threshold + gap
+            )
+
+        if triggered:
+            desired_state = rule.target_state
+        elif _release_reached(value, rule.operator, release_threshold):
+            desired_state = "off" if rule.target_state == "on" else "on"
+        else:
+            continue
+
+        changes = {}
+        if device.state != desired_state:
+            changes["state"] = desired_state
+        if triggered and desired_state == "on":
+            output_percent = _output_percent(rule, value)
+            if device.device_type == "light" and device.brightness != output_percent:
+                changes["brightness"] = output_percent
+            elif device.device_type == "fan":
+                speed = max(1, min(3, math.ceil(output_percent / 100 * 3)))
+                if device.fan_speed != speed:
+                    changes["fan_speed"] = speed
+
+        if changes:
+            for field, new_value in changes.items():
+                setattr(device, field, new_value)
+            device.save(update_fields=list(changes))
+            action = {
                 "rule_id": rule.id,
                 "device_id": device.id,
                 "device_name": device.name,
-                "state": rule.target_state,
+                "state": device.state,
+            }
+            action.update({
+                field: getattr(device, field)
+                for field in ("brightness", "fan_speed")
+                if field in changes
             })
+            actions.append(action)
 
     return {
         "evaluated": rules.count(),

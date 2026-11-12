@@ -20,6 +20,12 @@ The dashboard also supports simulated devices and demo sensor readings. Device s
 
 Enabled automation rules are evaluated on the server when a sensor reading is accepted, whether the reading comes from the demo endpoint or the USB gateway. Rules and device controls remain simulated.
 
+### Automation triggers, reset thresholds, and output calibration
+
+Each automation has a trigger threshold and a separate reset (`release_threshold`) to create hysteresis. For a high-value trigger such as temperature `>= 25°C`, the rule activates at 25°C and releases at or below 24°C. For a low-value trigger, release happens at or above the reset threshold. Between trigger and reset, the device keeps its current state. The API defaults to a 1°C temperature gap or a 5 percentage-point humidity gap when no reset value is supplied.
+
+Light brightness and fan speed use a proportional response when the rule is active and sets the device on. `calibration_percent` (1–100) caps the output: it starts at 20% of that cap at the trigger and ramps to the cap over 5°C or 20 humidity percentage points beyond the trigger. Fans map the result to their supported speed levels 1–3. Smart plugs remain on/off only. The percentage is a software output scale, not physical sensor calibration; real hardware needs its own calibration and safety tests.
+
 ## 2. Required components
 
 ### Minimum software-only setup

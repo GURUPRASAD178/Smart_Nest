@@ -32,6 +32,8 @@ class AutomationTests(TestCase):
 
         created = client.post("/api/automation/rules/", rule_data, format="json")
         self.assertEqual(created.status_code, 201)
+        self.assertEqual(created.data["release_threshold"], 21)
+        self.assertEqual(created.data["calibration_percent"], 100)
         rule_id = created.data["id"]
 
         updated = client.patch(
@@ -54,6 +56,12 @@ class AutomationTests(TestCase):
             format="json",
         )
         self.assertEqual(invalid_threshold.status_code, 400)
+        invalid_calibration = client.post(
+            "/api/automation/rules/",
+            {**rule_data, "calibration_percent": 101},
+            format="json",
+        )
+        self.assertEqual(invalid_calibration.status_code, 400)
 
         deleted = client.delete(f"/api/automation/rules/{rule_id}/")
         self.assertEqual(deleted.status_code, 204)
@@ -77,3 +85,97 @@ class AutomationTests(TestCase):
         self.assertEqual(response.data["skipped_offline"], 1)
         device.refresh_from_db()
         self.assertEqual(device.state, "off")
+
+    def test_rule_resets_device_at_release_threshold(self):
+        client = APIClient()
+        device = Device.objects.create(
+            name="Warm room fan",
+            device_type="fan",
+            state="on",
+            fan_speed=3,
+        )
+        SensorReading.objects.create(device_id="arduino-dht11", temperature=24, humidity=50)
+        AutomationRule.objects.create(
+            name="Warm room fan rule",
+            sensor="temperature",
+            operator="gte",
+            threshold=25,
+            release_threshold=24,
+            device=device,
+            target_state="on",
+        )
+
+        response = client.post("/api/automation/rules/evaluate/", {}, format="json")
+
+        self.assertEqual(response.status_code, 200)
+        device.refresh_from_db()
+        self.assertEqual(device.state, "off")
+
+    def test_rule_holds_state_inside_hysteresis_band(self):
+        client = APIClient()
+        device = Device.objects.create(
+            name="Warm room fan",
+            device_type="fan",
+            state="on",
+            fan_speed=2,
+        )
+        SensorReading.objects.create(device_id="arduino-dht11", temperature=24.5, humidity=50)
+        AutomationRule.objects.create(
+            name="Warm room fan rule",
+            sensor="temperature",
+            operator="gte",
+            threshold=25,
+            release_threshold=24,
+            device=device,
+            target_state="on",
+        )
+
+        response = client.post("/api/automation/rules/evaluate/", {}, format="json")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["actions"], [])
+        device.refresh_from_db()
+        self.assertEqual(device.state, "on")
+
+    def test_rule_scales_light_brightness_to_calibration(self):
+        client = APIClient()
+        device = Device.objects.create(name="Rule light", device_type="light", state="off")
+        SensorReading.objects.create(device_id="arduino-dht11", temperature=27.5, humidity=50)
+        AutomationRule.objects.create(
+            name="Warm room light",
+            sensor="temperature",
+            operator="gte",
+            threshold=25,
+            release_threshold=24,
+            calibration_percent=50,
+            device=device,
+            target_state="on",
+        )
+
+        response = client.post("/api/automation/rules/evaluate/", {}, format="json")
+
+        self.assertEqual(response.status_code, 200)
+        device.refresh_from_db()
+        self.assertEqual(device.state, "on")
+        self.assertEqual(device.brightness, 30)
+
+    def test_rule_scales_fan_to_discrete_speed(self):
+        client = APIClient()
+        device = Device.objects.create(name="Rule fan", device_type="fan", state="off")
+        SensorReading.objects.create(device_id="arduino-dht11", temperature=27.5, humidity=50)
+        AutomationRule.objects.create(
+            name="Warm room fan",
+            sensor="temperature",
+            operator="gte",
+            threshold=25,
+            release_threshold=24,
+            device=device,
+            target_state="on",
+        )
+
+        response = client.post("/api/automation/rules/evaluate/", {}, format="json")
+
+        self.assertEqual(response.status_code, 200)
+        device.refresh_from_db()
+        self.assertEqual(device.state, "on")
+        self.assertEqual(device.fan_speed, 2)
