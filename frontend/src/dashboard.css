@@ -217,6 +217,116 @@
   padding: 16px;
 }
 
+.automation-section {
+  margin-top: 38px;
+}
+
+.automation-section .section-heading {
+  margin-top: 0;
+}
+
+.automation-grid {
+  display: grid;
+  grid-template-columns: minmax(270px, 0.85fr) minmax(0, 1.15fr);
+  gap: 14px;
+}
+
+.rule-form {
+  display: grid;
+  align-content: start;
+  gap: 13px;
+  padding: 18px;
+}
+
+.rule-form h4,
+.rule-card h4 {
+  margin: 0;
+  font: 600 15px 'Space Grotesk';
+}
+
+.rule-form label {
+  display: grid;
+  gap: 6px;
+  color: #96a6bd;
+  font-size: 10px;
+}
+
+.rule-form input,
+.rule-form select {
+  min-width: 0;
+  min-height: 38px;
+  border: 1px solid #35445b;
+  border-radius: 9px;
+  padding: 8px 10px;
+  background: #101a2a;
+  color: #e7edf8;
+  font: inherit;
+}
+
+.rule-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.rule-list {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.rule-card {
+  padding: 15px 17px;
+}
+
+.rule-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: #8d9cb3;
+  font-size: 10px;
+}
+
+.rule-status .dot {
+  width: 7px;
+  height: 7px;
+}
+
+.rule-card.disabled {
+  opacity: 0.72;
+}
+
+.rule-card p {
+  margin: 7px 0 12px;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.rule-card p strong {
+  color: #dce7f6;
+}
+
+.rule-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px solid #26354a;
+  padding-top: 10px;
+}
+
+.rule-actions .ghost,
+.rule-delete {
+  padding: 7px 10px;
+  font-size: 10px;
+}
+
+.rule-delete {
+  border: 1px solid #63343c;
+  background: #3a2027;
+  color: #ffb4b4;
+}
+
 .dot:not(.bad) {
   animation: live-pulse 1.8s ease-in-out infinite;
 }
@@ -234,6 +344,10 @@
 
   .device-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .automation-grid {
+    grid-template-columns: 1fr;
   }
 }
 

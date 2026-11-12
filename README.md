@@ -66,6 +66,8 @@ at 9600 baud. The gateway sends valid readings to `POST /api/sensors/readings/`.
 - `POST /api/sensors/simulate/` creates a bounded demo reading when demo mode is enabled
 - `GET /api/automation/rules/`
 - `POST /api/automation/rules/` body: `{"name":"Warm room light","sensor":"temperature","operator":"gte","threshold":28,"device":1,"target_state":"on","enabled":true}`
+- Enabled automation rules run automatically when a sensor reading is accepted; the dashboard can create, pause, resume, and delete rules
+- `POST /api/automation/rules/evaluate/` manually evaluates the latest reading
 - `GET /api/analytics/summary/`
 
 ## Tests

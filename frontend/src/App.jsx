@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { api } from './api.js';
 import './dashboard.css';
+import AutomationPanel from './AutomationPanel.jsx';
 
 const TelemetryPanel = lazy(() => import('./TelemetryPanel.jsx'));
 
@@ -49,10 +50,12 @@ function Stat({ label, value, unit = '' }) {
 export default function App() {
   const [devices, setDevices] = useState([]);
   const [readings, setReadings] = useState([]);
+  const [rules, setRules] = useState([]);
   const [summary, setSummary] = useState(null);
   const [busy, setBusy] = useState({});
   const [bulkBusy, setBulkBusy] = useState(false);
   const [creatingDevice, setCreatingDevice] = useState(false);
+  const [savingRule, setSavingRule] = useState(false);
   const [showDeviceForm, setShowDeviceForm] = useState(false);
   const [roomFilter, setRoomFilter] = useState('*');
   const [newDevice, setNewDevice] = useState({ name: '', room: 'Living Room', device_type: 'light' });
@@ -64,14 +67,16 @@ export default function App() {
 
   const refresh = useCallback(async () => {
     try {
-      const [deviceData, readingData, summaryData] = await Promise.all([
+      const [deviceData, readingData, summaryData, ruleData] = await Promise.all([
         api.devices(),
         api.readings(),
         api.summary(),
+        api.rules(),
       ]);
       setDevices(deviceData);
       setReadings(readingData);
       setSummary(summaryData);
+      setRules(ruleData);
       setLastUpdated(new Date());
       setError('');
     } catch (e) {
@@ -153,6 +158,47 @@ export default function App() {
     }
   }
 
+  async function createRule(rule) {
+    setSavingRule(true);
+    setNotice('');
+    try {
+      await api.createRule(rule);
+      await refresh();
+      setNotice('Automation saved. It will run when a new sensor reading arrives.');
+      return true;
+    } catch (e) {
+      setError(e.message);
+      return false;
+    } finally {
+      setSavingRule(false);
+    }
+  }
+
+  async function toggleRule(rule) {
+    setSavingRule(true);
+    try {
+      await api.updateRule(rule.id, { enabled: !rule.enabled });
+      await refresh();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSavingRule(false);
+    }
+  }
+
+  async function deleteRule(rule) {
+    setSavingRule(true);
+    try {
+      await api.deleteRule(rule.id);
+      await refresh();
+      setNotice(`Automation "${rule.name}" deleted.`);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSavingRule(false);
+    }
+  }
+
   async function evaluate() {
     setEvaluating(true);
     setNotice('');
@@ -216,6 +262,14 @@ export default function App() {
       {visibleDevices.length === 0 && devices.length > 0 && <div className="card empty">No devices in this room.</div>}
       {devices.length === 0 && !error && <div className="card empty">No devices yet. Use Add device to get started.</div>}
     </section>
+    <AutomationPanel
+      rules={rules}
+      devices={devices}
+      busy={savingRule}
+      onCreate={createRule}
+      onToggle={toggleRule}
+      onDelete={deleteRule}
+    />
     <Suspense fallback={<section className="telemetry-grid"><div className="card chart-panel chart-empty">Loading live telemetry…</div></section>}>
       <TelemetryPanel readings={readings} demoMode={demoMode}/>
     </Suspense>

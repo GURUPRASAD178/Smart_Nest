@@ -1,6 +1,8 @@
 from django.test import TestCase
 from django.test import override_settings
 from rest_framework.test import APIClient
+from apps.devices.models import Device
+from apps.automation.models import AutomationRule
 from .models import SensorReading
 
 
@@ -14,6 +16,27 @@ class SensorApiTests(TestCase):
         }, format="json")
         self.assertEqual(response.status_code, 201)
         self.assertEqual(SensorReading.objects.count(), 1)
+
+    def test_new_sensor_reading_automatically_evaluates_enabled_rules(self):
+        fan = Device.objects.create(name="Automatic fan", device_type="fan", state="off")
+        AutomationRule.objects.create(
+            name="Warm room fan",
+            sensor="temperature",
+            operator="gte",
+            threshold=25,
+            device=fan,
+            target_state="on",
+        )
+
+        response = self.client.post("/api/sensors/readings/", {
+            "device_id": "arduino-dht11",
+            "temperature": 26,
+            "humidity": 50,
+        }, format="json")
+
+        self.assertEqual(response.status_code, 201)
+        fan.refresh_from_db()
+        self.assertEqual(fan.state, "on")
 
     def test_health_reports_demo_data_availability(self):
         response = self.client.get("/api/health/")

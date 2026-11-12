@@ -86,4 +86,46 @@ describe('API client', () => {
       body: JSON.stringify({ state: 'off' }),
     }));
   });
+
+  it('creates and updates automation rules through the API', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: 3 }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const rule = {
+      name: 'Warm room fan',
+      sensor: 'temperature',
+      operator: 'gte',
+      threshold: 27,
+      device: 2,
+      target_state: 'on',
+      enabled: true,
+    };
+
+    await api.createRule(rule);
+    await api.updateRule(3, { enabled: false });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, '/api/automation/rules/', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify(rule),
+    }));
+    expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/automation/rules/3/', expect.objectContaining({
+      method: 'PATCH',
+      body: JSON.stringify({ enabled: false }),
+    }));
+  });
+
+  it('lists and deletes automation rules through the API', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => [{ id: 3 }] })
+      .mockResolvedValueOnce({ ok: true, status: 204, json: async () => ({}) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await api.rules();
+    await api.deleteRule(3);
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, '/api/automation/rules/', expect.any(Object));
+    expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/automation/rules/3/', expect.objectContaining({ method: 'DELETE' }));
+  });
 });

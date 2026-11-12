@@ -18,6 +18,8 @@ PostgreSQL or local SQLite    USB serial sensor gateway
 
 The dashboard also supports simulated devices and demo sensor readings. Device state, brightness, and fan speed are persisted in the API, but the current device commands do not operate physical appliances. The Arduino integration currently reads temperature and humidity only.
 
+Enabled automation rules are evaluated on the server when a sensor reading is accepted, whether the reading comes from the demo endpoint or the USB gateway. Rules and device controls remain simulated.
+
 ## 2. Required components
 
 ### Minimum software-only setup

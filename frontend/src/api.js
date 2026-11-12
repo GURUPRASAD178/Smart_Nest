@@ -20,5 +20,9 @@ export const api = {
   readings: () => request('/sensors/readings/'),
   simulateReading: () => request('/sensors/simulate/', { method: 'POST', body: '{}' }),
   summary: () => request('/analytics/summary/'),
+  rules: () => request('/automation/rules/'),
+  createRule: rule => request('/automation/rules/', { method: 'POST', body: JSON.stringify(rule) }),
+  updateRule: (id, changes) => request(`/automation/rules/${id}/`, { method: 'PATCH', body: JSON.stringify(changes) }),
+  deleteRule: id => request(`/automation/rules/${id}/`, { method: 'DELETE' }),
   evaluate: () => request('/automation/rules/evaluate/', { method: 'POST', body: '{}' }),
 };
