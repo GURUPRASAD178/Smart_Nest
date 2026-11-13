@@ -13,10 +13,10 @@ Django REST API
     |                         \
 PostgreSQL or local SQLite    USB serial sensor gateway
                                   |
-                            Arduino + DHT11
+                       Arduino + DHT11 + IR beam sensor
 ```
 
-The dashboard also supports simulated devices, demo temperature/humidity readings, and simulated IR beam-break events. Device state, brightness, fan speed, and buzzer state are persisted in the API, but device commands do not operate physical appliances. The current Arduino integration reads temperature and humidity only; no physical IR sensor or buzzer is connected yet.
+The dashboard also supports simulated devices and demo sensor events. The Arduino firmware reads DHT11 temperature/humidity, reports IR beam-break transitions, and drives a local buzzer while the beam is interrupted. The API still simulates device controls; the physical buzzer is controlled directly by the Arduino.
 
 Enabled automation rules are evaluated on the server when a sensor reading or motion event is accepted. Rules and device controls remain simulated.
 
@@ -40,25 +40,25 @@ Light brightness and fan speed use a proportional response when the rule is acti
 
 This is enough to use the dashboard, seven seeded simulated devices, simulated sensor data, and device controls. No Arduino or physical device is required.
 
-### Minimum physical sensor setup
+### Physical sensor setup
 
 | Component | Notes |
 |---|---|
 | Arduino Uno/Nano-compatible board | Must expose a USB serial port. |
-| DHT11 sensor module | The current firmware uses the DHT11 protocol. A breakout module is simplest. |
+| DHT11 sensor module | The firmware uses the DHT11 protocol. A breakout module is simplest. |
+| IR obstacle/beam-break module | Use a module with a digital output; it detects an interrupted beam, not general room occupancy. |
+| Active buzzer module and suitable driver | Follow the module ratings; do not connect an unrated buzzer directly to a GPIO pin. |
 | USB data cable | A charge-only cable will not provide a serial connection. |
 | Jumper wires | Match the module labels and board pinout. |
 | Breadboard | Optional for a low-voltage prototype. |
 
-The firmware reads the DHT data line from Arduino digital pin **D2**. Connect power and ground only according to the specific sensor module and board documentation. A bare DHT11 may require additional components; use a breakout module or follow its datasheet. The firmware uses 9600 baud.
+The default pin assignment is DHT11 data on **D2**, IR digital output on **D3**, and buzzer-driver control on **D4**. The IR input is configured active-low by default; change `IR_ACTIVE_STATE` in the sketch to `HIGH` if required by the specific module. The buzzer output is active-high and intended for an active buzzer module through a suitable driver. Connect power and ground only according to each module's documentation. A bare DHT11 may require additional components; use a breakout module or follow its datasheet. The firmware uses 9600 baud.
 
 The gateway currently runs on the computer that can access both the serial port and the API. In the Docker setup, run the gateway on the host computer; serial-port passthrough into Docker is not configured.
 
-### Optional future components
+### Sensor limitations
 
-The dashboard can simulate an IR beam-break event and a buzzer device. The selected IR obstacle/break-beam sensor detects interruption at a fixed path; it is not the same as a PIR room-motion sensor and cannot establish that a break-in occurred. A door/window contact sensor can later detect opening at a specific entry point. Check the exact sensor and buzzer module datasheets before any physical connection. The Arduino firmware has not yet been extended for these modules.
-
-For a later Arduino Uno build, D2 remains assigned to the DHT11; D3 for the beam sensor output and D4 for a buzzer-driver control are only a provisional pin plan. Confirm the sensor's output polarity and voltage and whether the buzzer is active or passive before writing or wiring the firmware. Do not drive a buzzer directly from a GPIO pin unless its electrical ratings explicitly allow it; use an appropriate driver when required.
+The IR obstacle/beam-break sensor detects interruption at a fixed path; it is not the same as a PIR room-motion sensor and cannot establish that a break-in occurred. Confirm sensor output polarity and voltage, and the buzzer driver's electrical ratings, before connecting hardware. This prototype's buzzer is a local alert only, not a certified intrusion alarm.
 
 For physical appliance control, use certified smart plugs or a properly rated, isolated actuator installed by a qualified person. Do not connect mains voltage to an Arduino, breadboard, USB port, or low-voltage sensor module. Physical actuation is not implemented by this project.
 
@@ -68,9 +68,9 @@ For physical appliance control, use certified smart plugs or a properly rated, i
 
 The sketch at `firmware/arduino_dht11/arduino_dht11.ino`:
 
-- samples about every two seconds;
+- samples the DHT11 about every two seconds and polls/debounces the IR input;
 - starts serial output at 9600 baud;
-- prints a header, then CSV rows in this exact order:
+- prints a header and DHT CSV rows in this exact order:
 
 ```text
 humidity,temperature,heat_index
@@ -93,6 +93,8 @@ Content-Type: application/json
 
 `heat_index` may be null. The API records a server-side timestamp.
 
+The sketch also prints `MOTION,1` when the beam is interrupted and `MOTION,0` when it clears (including the initial state at startup). The gateway forwards these transitions to `POST /api/sensors/motion/` using `device_id: "arduino-ir-beam"`. The local buzzer is on while the beam is interrupted and off when it clears. DHT readings and motion events are handled independently; DHT read errors do not stop motion sensing.
+
 ### Motion event and automation contract
 
 The dashboard posts a simulated event to `POST /api/sensors/motion/simulate/`:
@@ -101,7 +103,7 @@ The dashboard posts a simulated event to `POST /api/sensors/motion/simulate/`:
 {"detected": true}
 ```
 
-The API records it as `device_id: "demo-ir-beam"` and evaluates enabled motion rules. A physical gateway can later post the same boolean to `POST /api/sensors/motion/` with a stable device ID. Create one motion rule per target: `sensor: "motion"`, `operator: "gte"`, `threshold: 1`, `release_threshold: 0`; choose a light or buzzer and set its target state to `on`. When the beam clears (`detected: false`), the rule restores the opposite state. The buzzer therefore sounds only while the simulated beam is blocked. This is prototype behavior, not a certified intrusion alarm.
+The API records it as `device_id: "demo-ir-beam"` and evaluates enabled motion rules. The physical firmware reports the same boolean as serial transitions, which the gateway posts to `POST /api/sensors/motion/` with `device_id: "arduino-ir-beam"`. Create one motion rule per virtual target: `sensor: "motion"`, `operator: "gte"`, `threshold: 1`, `release_threshold: 0`; choose a light or buzzer and set its target state to `on`. When the beam clears (`detected: false`), the rule restores the opposite state. The physical buzzer alert is controlled locally by the Arduino and works independently of these virtual automation rules. This is prototype behavior, not a certified intrusion alarm.
 
 ### Device contract
 
@@ -147,13 +149,13 @@ Compose applies database migrations and idempotently seeds the simulated devices
 
 For local development without Docker, follow the backend and frontend steps in the root [README](../README.md); run `python manage.py migrate` and `python manage.py seed_devices` from `backend`.
 
-## 5. Add the existing DHT11 hardware
+## 5. Connect the Arduino sensors and buzzer
 
 1. **Keep the API and dashboard working.** Start them first and check the health endpoint.
 2. **Install firmware dependencies.** In Arduino IDE, install the DHT sensor library required by `#include <DHT.h>` and any dependency requested by the library manager.
-3. **Connect the low-voltage sensor.** Use D2 for the data signal and follow the board/module labels for power and ground. Do not guess pin order from wire color.
+3. **Connect the low-voltage modules.** Use D2 for DHT11 data, D3 for the IR digital output, and D4 for the buzzer-driver control. Confirm IR polarity and module supply requirements. Use a suitable driver for the buzzer; do not guess pin order from wire color.
 4. **Upload the sketch.** Open `firmware/arduino_dht11/arduino_dht11.ino`, select the matching board/serial port, and upload.
-5. **Check serial output.** Open Serial Monitor at 9600 baud. Confirm rows follow `humidity,temperature,heat_index`; close Serial Monitor before starting the gateway because only one program can normally own the port.
+5. **Check serial output.** Open Serial Monitor at 9600 baud. Confirm DHT rows follow `humidity,temperature,heat_index` and beam changes appear as `MOTION,1`/`MOTION,0`; close Serial Monitor before starting the gateway because only one program can normally own the port.
 6. **Install gateway dependencies** in a Python environment:
 
    ```powershell
@@ -169,7 +171,7 @@ For local development without Docker, follow the backend and frontend steps in t
    python serial_reader.py --port COM3 --api-url http://127.0.0.1:8000
    ```
 
-   On Linux, a port such as `/dev/ttyACM0` may be used. The gateway reconnects after serial errors and retries API posts on later samples. It does not keep a durable queue while the API is unavailable.
+   On Linux, a port such as `/dev/ttyACM0` may be used. The gateway reconnects after serial errors. It does not keep a durable queue or retry a failed motion transition while the API is unavailable; later DHT samples are sent independently.
 
 8. **Verify ingestion** in the dashboard's recent readings, or post a sample directly for diagnosis:
 

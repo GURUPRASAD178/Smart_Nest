@@ -10,6 +10,12 @@ log = logging.getLogger("smartnest-gateway")
 
 def parse_line(line: str):
     parts = [p.strip() for p in line.strip().split(",")]
+    if len(parts) == 2 and parts[0] == "MOTION" and parts[1] in ("0", "1"):
+        return {
+            "event_type": "motion",
+            "device_id": "arduino-ir-beam",
+            "detected": parts[1] == "1",
+        }
     if len(parts) < 2:
         return None
     try:
@@ -40,17 +46,28 @@ def main():
                     line = ser.readline().decode("utf-8", errors="ignore").strip()
                     if not line:
                         continue
-                    reading = parse_line(line)
-                    if reading is None:
+                    message = parse_line(line)
+                    if message is None:
                         log.debug("Ignoring non-reading serial line: %r", line)
                         continue
                     try:
-                        response = requests.post(endpoint, json=reading, timeout=5)
+                        if message.get("event_type") == "motion":
+                            motion_endpoint = args.api_url.rstrip("/") + "/api/sensors/motion/"
+                            payload = {
+                                "device_id": message["device_id"],
+                                "detected": message["detected"],
+                            }
+                            response = requests.post(motion_endpoint, json=payload, timeout=5)
+                            response.raise_for_status()
+                            log.info("Posted motion state: %s", payload["detected"])
+                            continue
+
+                        response = requests.post(endpoint, json=message, timeout=5)
                         response.raise_for_status()
                         log.info("Posted temperature %.1f C, humidity %.1f%%",
-                                 reading["temperature"], reading["humidity"])
+                                 message["temperature"], message["humidity"])
                     except requests.RequestException as exc:
-                        log.warning("API post failed; next serial reading will retry: %s", exc)
+                        log.warning("API post failed; this serial message is not queued: %s", exc)
         except (serial.SerialException, OSError) as exc:
             log.warning("Serial connection unavailable (%s); retrying in %.1fs", exc, args.retry_seconds)
             time.sleep(args.retry_seconds)

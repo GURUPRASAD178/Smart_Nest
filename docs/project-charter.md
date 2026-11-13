@@ -4,7 +4,7 @@
 Deliver an affordable, testable smart-home platform for device control, environmental monitoring, automation and energy estimates.
 
 ## Scope
-React dashboard, Django REST API, PostgreSQL, Arduino Uno + DHT11 via USB serial, Python gateway, simulated devices, basic rules and analytics, Docker and cloud deployment.
+React dashboard, Django REST API, PostgreSQL, Arduino Uno + DHT11 and IR beam sensor via USB serial, local buzzer alert, Python gateway, simulated devices, basic rules and analytics, Docker and cloud deployment.
 
 ## Out of scope
 Native mobile apps, microservices, advanced ML, mains wiring, and certified energy measurement.

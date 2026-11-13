@@ -1,6 +1,6 @@
 # SmartNest
 
-Smart home automation starter: React + Vite dashboard, Django REST API, PostgreSQL, Arduino DHT11 USB-serial gateway, and simulated devices.
+Smart home automation starter: React + Vite dashboard, Django REST API, PostgreSQL, Arduino DHT11/IR beam sensor USB-serial gateway, buzzer alert, and simulated devices.
 
 ## Requirements
 - Python 3.11+
@@ -50,10 +50,8 @@ python serial_reader.py --port COM3 --api-url http://127.0.0.1:8000
 ```
 Replace `COM3` with your Arduino serial port (e.g. `/dev/ttyACM0`). Close Arduino Serial Monitor first.
 
-## Arduino DHT11 serial format
-Upload `firmware/arduino_dht11/arduino_dht11.ino`. It emits CSV:
-`humidity,temperature,heat_index`
-at 9600 baud. The gateway sends valid readings to `POST /api/sensors/readings/`.
+## Arduino sensor firmware
+Upload `firmware/arduino_dht11/arduino_dht11.ino` with the DHT sensor library installed. Default pins are DHT11 data D2, active-low IR digital output D3, and active-high buzzer-driver control D4. At 9600 baud it emits DHT CSV (`humidity,temperature,heat_index`) about every two seconds and `MOTION,1`/`MOTION,0` when the IR beam is interrupted/cleared. The gateway forwards readings to `POST /api/sensors/readings/` and motion events to `POST /api/sensors/motion/`. Use a suitable buzzer driver and confirm module polarity/ratings before wiring; see the hardware guide.
 
 ## API
 - `GET /api/health/`
